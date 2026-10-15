@@ -31,7 +31,7 @@ Claude (Anthropic) to her decision records in `decisions/`.
 | L5 | Observability, load, alerts, on-call | — |
 | L6 | Warm pools, cold start, snapshots | — |
 | L7 | MicroVM isolation: smolvm and Firecracker | — |
-| L8 | Desktop sandbox, an agent, evals | — |
+| L8 | Desktop sandbox, an agent, evals, transcripts | — |
 | L9 | Tenants and auth | — |
 | L10 | Nodes and scheduling at scale | — |
 | L11 | Real cloud: Terraform, autoscaling, drain | — |
