@@ -1,7 +1,7 @@
 # sandbox-lab
 
 A small, E2B-shaped sandbox control plane, built to learn agent infrastructure by deciding, breaking and
-measuring: an API that gives AI agents their own isolated computer (Docker first, then smolvm microVMs),
+measuring: an API that gives AI agents their own isolated computer (Docker first, then smolvm and Firecracker microVMs, on Kubernetes and AWS),
 keeps working when things crash, and knows its own limits.
 
 **Who did what:** design decisions, predictions, experiments and analysis by Ritika Gupta; code written by
@@ -27,13 +27,17 @@ Claude (Anthropic) to her decision records in `decisions/`.
 | L1 | Commands and processes | — |
 | L2 | State that survives | — |
 | L3 | Reconciler, leases, cleanup | — |
-| L4 | Desktop sandbox and an agent | — |
-| L5 | Observability and load | — |
-| L6 | Warm pools and cold start | — |
-| L7 | Isolation: smolvm | — |
-| L8 | Nodes, scheduling, quotas | — |
-| L9 | Durable runs and deploys | — |
-| L10 | Defend it | — |
+| L4 | Kubernetes: the reconciler becomes a controller | — |
+| L5 | Observability, load, alerts, on-call | — |
+| L6 | Warm pools, cold start, snapshots | — |
+| L7 | MicroVM isolation: smolvm and Firecracker | — |
+| L8 | Desktop sandbox, an agent, evals | — |
+| L9 | Tenants and auth | — |
+| L10 | Nodes and scheduling at scale | — |
+| L11 | Real cloud: Terraform, autoscaling, drain | — |
+| L12 | Durable runs and deploys | — |
+
+Every experiment reruns from a clean checkout with one command and writes its numbers to `results/`.
 
 ## Results
 
