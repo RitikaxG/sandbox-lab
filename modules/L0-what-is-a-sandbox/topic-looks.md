@@ -20,3 +20,19 @@ Question: what does `machine run`/`start` create on the host, and what isolates 
   Mac which has logs, sockets that guest needs for talking to Mac · the vm machine starts a container inside where nginx
   runs. VM uses its own Linux kernel."
 - For Thursday: compare with a Docker container (shared kernel; on a Mac, inside Docker Desktop's own VM).
+- **Afternoon, pack and branch** (MAP Use log has the numbers): a sandbox is also an *object*. `pack create --from-vm`
+  turns a machine into one 37 MB `.smolmachine` (its disk: image layers + changes) plus a 44 MB stub that runs it; a new
+  machine starts from it in 0.6 s with no pull. Host-side settings (port 8080) do not travel; the host re-adds them.
+  `machine branch` clones a running `--branchable` machine in 0.38 s; the child starts with the parent's state, and its
+  writes stay private (copy-on-write) (all OBSERVED). For the lab: "create a sandbox" can mean boot from an image, start
+  from a packed file, or branch a live one; each has a different cost to measure.
+- Ritika, in her words (pack/branch explain-back, after a 4-piece re-walk): "smolvm sandbox is a vm ( guest machine ) that
+  can be copied into another server, it can be branched so that agent can try out different things , it can be a running
+  process on your own mac, it gets transferred as a file." Follow-up, on the Mac: "the folder ( the disk ) that contains
+  settings , socket , for the process running". What each way carries (her table, corrected together):
+  | Way | Disk | RAM | Host settings (ports) |
+  | `create --image` | fresh, from the image | no | only what you pass (`-p`) |
+  | `create --from` `.smolmachine` | yes, the packed disk | no | no |
+  | `branch --from` | yes, shared by CoW | yes, shared by CoW | UNKNOWN (source had no ports; not tested) |
+- Mind map of the whole afternoon (Ritika's draft, corrected together): ![pack and branch map](pack-branch-map.png)
+  Editable: [pack-branch-map.excalidraw](pack-branch-map.excalidraw) (Excalidraw → menu → Open; it replaces the open canvas).
