@@ -4,6 +4,9 @@ A small, E2B-shaped sandbox control plane, built to learn agent infrastructure b
 measuring: an API that gives AI agents their own isolated computer (Docker first, then smolvm and Firecracker microVMs, on Kubernetes and AWS),
 keeps working when things crash, and knows its own limits.
 
+**Focus:** sandbox lifecycle failures: what happens to an agent's processes, its leftovers and its state when
+things crash, hang or restart.
+
 **Who did what:** design decisions, predictions, experiments and analysis by Ritika Gupta; code written by
 Claude (Anthropic) to her decision records in `decisions/`.
 
@@ -23,7 +26,7 @@ Claude (Anthropic) to her decision records in `decisions/`.
 
 | # | Module | Status |
 | --- | --- | --- |
-| L0 | What is a sandbox? | in progress |
+| L0 | What is a sandbox? | in progress (notes: `modules/L0-what-is-a-sandbox/`) |
 | L1 | Commands and processes | — |
 | L2 | State that survives | — |
 | L3 | Reconciler, leases, cleanup | — |
