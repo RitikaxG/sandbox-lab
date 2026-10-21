@@ -80,3 +80,22 @@ Question: what is CUA's desktop sandbox (container or VM), and how is it started
   share it).
 - For Thursday: look inside a container from the hidden VM's side (`ps`, namespaces, cgroups) and compare with a smolvm
   machine; that is where "shared kernel" becomes visible.
+
+## Composio (Wed 2026-10-21, reading only, `next` 6f94cc906; SDK `composio` 0.28.0)
+
+Question: does Composio run agent code anywhere, and if so in what kind of sandbox?
+
+- **Yes: a remote sandbox per session, on by default** (SOURCE: `docs/content/docs/sandbox/remote.mdx`). A persistent
+  Python environment (works like a Jupyter notebook: variables and files survive between calls) on Composio's servers.
+  The agent reaches it through two meta tools every session hands out, `COMPOSIO_REMOTE_WORKBENCH` (Python) and
+  `COMPOSIO_REMOTE_BASH_TOOL` (shell) (OBSERVED: both in `session.tools()` on Oct 21).
+- **Why it exists:** jobs too big for one tool call at a time. The agent writes one script that loops and calls tools
+  from inside (`run_composio_tool`, using the user's connected accounts) instead of hundreds of separate calls.
+- **Size and lifecycle:** one per session; tiers `standard` 1 vCPU / 1 GB up to `xlarge` 8 vCPU / 8 GB. Changing the
+  tier recreates the sandbox: memory is lost, `/mnt/files/` survives (SOURCE: same file, `configuring-sessions.mdx`).
+- **Other mode:** a local sandbox (experimental): the code runs in your own VM, container or CI box; Composio keeps
+  auth and tool discovery (SOURCE: `docs/content/docs/sandbox/local.mdx`).
+- **Isolation technology: UNKNOWN.** The docs never say container, microVM or which provider. To check hands-on in
+  the lab (read-only commands through `COMPOSIO_REMOTE_BASH_TOOL`: kernel, container markers, CPUs seen).
+- Ritika, in her words: "the composio's sandbox allows to run the agent code, instead of too big single tool calls,
+  agent writes one script that loops inside the sandbox."
