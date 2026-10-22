@@ -46,7 +46,7 @@ docker run --rm --privileged --pid=host alpine nsenter -t 1 -m -- ls -la $(docke
   unless asked, so a sandbox API must set the caps on create. Over the cap, the kernel kills a process in that group only.
 - **Overlay filesystem:** the image's read-only layers are shared; each container writes to its own top folder, deleted
   with the container (volumes are separate and survive).
-- Ritika's mind map of the Docker look: ![Docker container map](docker-container-map.png)
+- Mind map of the Docker look: Ritika's draft, completed by Claude (overlay, the cap and kill, the room) from her evening recall with its two fixes: ![Docker container map](docker-container-map.png)
 - **Orphan** (hook for Friday's break): if the API dies and never deletes a container, the whole container stays: the
   running process and its memory, its cgroup and namespaces, its top folder.
 
@@ -146,3 +146,14 @@ kernel to transfer it to a namespace where another process is running, it can ge
   other container's namespace and read its files if that fence is removed." cgroup = "caps memory, cpu usage for a group
   of processes." Right; missing: the cost side of the trade-off (203 ms vs 1.75–4 s) and what happens at the cap (the
   kernel kills a process in that group, exit 137). Kept in Friday's cold recall.
+
+## Recall from memory (same evening, no notes)
+
+- Overlay: "adds to the image files as the top layer, this includes something custom to the container." Missing: the
+  image layers are read-only and shared by every container from that image; all writes land only in the top folder,
+  which is deleted with the container.
+- cgroup cap: "the controller kills the process from that group while the container, vm survives; it returns killed
+  with status code 137." Fix: the capped container itself ended (its job was killed); the neighbours (`l0box`) and the
+  VM survived.
+- `docker exec`: `ps` is born outside the room and sees the VM's list (`sleep` has a big number); it asks the kernel to
+  place it into `sleep`'s namespaces, and only inside the room does it see `sleep` as #1. Right.
