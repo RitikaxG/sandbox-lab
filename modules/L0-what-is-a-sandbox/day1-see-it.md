@@ -124,3 +124,25 @@ is, so outside. To make `ps` read the room's list:
 Q: which step makes `ps` see `sleep` as #1? Ritika: "step 2, since ps walked into the same room (pid namespace) where
 sleep exists, so it was able to see sleep as #1." Right. (Her earlier "ps gets its own free pid": true of every new
 process; what matters is which list the number comes from, and that is decided by step 2.)
+
+## Explain-back (no notes): "What is a container, and how is a smolvm machine different?"
+
+Ritika: "A container is nothing but a Linux process that's somewhat isolated with namespaces and cgroups. Smolvm machine
+is not a container but a vm, it has its own kernel. Every time you start a smolvm machine a vm starts on your mac with
+its own kernel. Container doesn't have its own kernel, it uses the hidden Linux vm's kernel that's Docker Desktop.
+Namespace assigns a separate number list to processes that belong to a particular container. A process can request a
+kernel to transfer it to a namespace where another process is running, it can get its view."
+
+- Solid: container = process + namespaces + cgroups; no kernel of its own; smolvm = VM with its own kernel; joining
+  another process's namespaces.
+- Gaps to cross-question: a separate number list is only the `pid` kind (6 kinds differed); cgroups named but not what
+  they do; the trade-off for sandboxes (shared kernel and real root vs own kernel; 203 ms vs 1.75–4 s).
+- Cross-question "name two other things a namespace fenced for `l0box`": Ritika: "network, user, files, ipc". `net`, `mnt`
+  and `ipc` right; `user` was the one NOT fenced (shared with the VM, which is why its root was real root, as she
+  said herself). Best evidence for files (`mnt`): the fresh container had no `hello.txt`, and the helper needed
+  `nsenter -m` to see the VM's `/var/lib/docker`.
+- For the next cold recall: what a cgroup does at its cap; the sandbox trade-off (shared kernel + real root vs own kernel; 203 ms vs 1.75–4 s).
+- Ritika, same evening: trade-off = "isolation. Since container shares the same kernel, a user may be able to enter into
+  other container's namespace and read its files if that fence is removed." cgroup = "caps memory, cpu usage for a group
+  of processes." Right; missing: the cost side of the trade-off (203 ms vs 1.75–4 s) and what happens at the cap (the
+  kernel kills a process in that group, exit 137). Kept in Friday's cold recall.
