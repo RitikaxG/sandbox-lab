@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Time `POST /sandboxes` on the lab's sandbox API (L0, decision 001: Docker SDK).
 
-Usage: python3 measure_create.py [runs]        (default 50)
+Usage: python3 measure_create.py [runs] [runtime]   (default 50, docker)
+Runtimes: docker (Engine SDK, decision 001), docker-cli (option A: shell out to `docker`, the flip).
 
-Starts the API (building it first) unless one already answers on localhost:8080.
+Builds and starts the API with that runtime; stops if something already answers on localhost:8080.
 One warm-up create (not counted), then N timed creates; each sandbox is deleted
 right after its create, outside the timing. For every run it records the time seen
 by the client and `create_ms`, the time the API spent in Docker create + start, so
@@ -44,10 +45,10 @@ def api_up():
         return False
 
 
-def start_api():
+def start_api(runtime):
     subprocess.run(["go", "build", "-o", "bin/sandbox-api", "./cmd/sandbox-api"], cwd=REPO, check=True)
     log = open(REPO / "bin" / "sandbox-api.log", "a")
-    proc = subprocess.Popen([str(REPO / "bin" / "sandbox-api")], cwd=REPO, stdout=log, stderr=log)
+    proc = subprocess.Popen([str(REPO / "bin" / "sandbox-api"), "-runtime", runtime], cwd=REPO, stdout=log, stderr=log)
     for _ in range(50):
         if api_up():
             return proc
@@ -69,7 +70,11 @@ def pct(sorted_vals, p):
 
 def main():
     runs = int(sys.argv[1]) if len(sys.argv) > 1 else 50
-    proc = None if api_up() else start_api()
+    runtime = sys.argv[2] if len(sys.argv) > 2 else "docker"
+    if api_up():
+        sys.exit("something already answers on localhost:8080; stop it first")
+    proc = start_api(runtime)
+    print(f"runtime: {runtime}")
     try:
         stamp = datetime.now().isoformat(timespec="seconds")
         machine = f"{platform.machine()} macOS {platform.mac_ver()[0]}"
@@ -79,17 +84,17 @@ def main():
         with OUT.open("a", newline="") as f:
             w = csv.writer(f)
             if new_file:
-                w.writerow(["timestamp", "machine", "run", "client_ms", "api_create_ms"])
+                w.writerow(["timestamp", "machine", "runtime", "run", "client_ms", "api_create_ms"])
             for i in range(1, runs + 1):
                 c, s = create_once()
                 clients.append(c)
                 servers.append(s)
-                w.writerow([stamp, machine, i, f"{c:.1f}", s])
-                print(f"  run {i:2}: {c:5.0f} ms   (Docker create+start {s} ms)")
+                w.writerow([stamp, machine, runtime, i, f"{c:.1f}", s])
+                print(f"  run {i:2}: {c:5.0f} ms   (inside the API {s} ms)")
         cs = sorted(clients)
         print(f"\nclient: min {cs[0]:.0f} · p50 {statistics.median(cs):.0f} · p99 {pct(cs, 99):.0f} ms"
               f"   p99/p50 = {pct(cs, 99) / statistics.median(cs):.2f}")
-        print(f"Docker create+start inside the API: p50 {statistics.median(servers):.0f} ms")
+        print(f"runtime create inside the API: p50 {statistics.median(servers):.0f} ms")
         print(f"API's own overhead at p50: {statistics.median(c - s for c, s in zip(clients, servers)):.1f} ms")
         left = subprocess.run(["docker", "ps", "-aq", "--filter", "label=sandbox-lab"],
                               capture_output=True, text=True).stdout.split()

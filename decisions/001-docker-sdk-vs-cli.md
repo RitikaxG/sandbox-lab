@@ -52,3 +52,20 @@ Why (Ritika):
 
 Not run before deciding (Ritika decided from the trade-offs). The step 8 flip measures A against B on the same
 experiment instead.
+
+## Flip result (2026-10-24, same day): B stays
+
+50 creates through the API with each route, same machine (`results/l0-create-latency.csv`):
+
+| | min | p50 | p99 |
+| --- | --- | --- | --- |
+| B, Engine SDK | 76 ms | 100 ms | 129 ms |
+| A, `docker` CLI | 111 ms | 128 ms | 162 ms |
+
+Why B stays (Ritika):
+
+- With A, every create starts an extra program, `docker`, which loads, reads its settings to find the socket, sends
+  the requests and exits; the create and start themselves happen in `dockerd` either way (INFERENCE on where the time
+  goes; not timed piece by piece).
+- That costs +28 ms (+28%) at p50, and A's fastest create (111 ms) is slower than B's median (100 ms), so the gap is
+  real, not noise (OBSERVED).

@@ -86,3 +86,20 @@ Rerun: `python3 break_kill_api.py`. Raw: `../../results/l0-kill-api-orphans.csv`
 | 6. Docker at the end | 5 containers, 5 running: **5 orphans** |
 
 Predictions 6 (b) and 7 (b) right, 8 (a) wrong; score 4 / 8.
+
+## Flip (module loop step 8): the same 50 creates with option A, the `docker` CLI
+
+Rerun: `python3 measure_create.py 50 docker-cli` (the API's `-runtime docker-cli`: `docker run -d` per create).
+
+| | min | p50 | p99 (≈ slowest of 50) | warm-up (not counted) |
+| --- | --- | --- | --- | --- |
+| B, Engine SDK | 76 ms | **100 ms** | 129 ms | 2,248 ms (Claude's 2-run script check) |
+| A, `docker` CLI | 111 ms | **128 ms** | 162 ms | 2,233 ms |
+
+- OBSERVED: A is +28 ms (+28%) at p50; A's fastest run is slower than B's median. API overhead ~2 ms in both.
+- INFERENCE: the extra is mostly starting the `docker` program per create (load, read its settings, exit), not the
+  HTTP conversion; not timed piece by piece.
+- OBSERVED: the first create is ~2.2 s whichever route (SDK 2,248, CLI 2,233; Thursday's `docker run` 2,304), so that
+  first-run cost is on Docker's side, not in our API or the CLI (INFERENCE; its cause is UNKNOWN). Warm-ups are not
+  saved in the CSV.
+- Prediction 9 (b 120–200 ms) right; score 5 / 9.
