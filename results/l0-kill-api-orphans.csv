@@ -1,0 +1,2 @@
+timestamp,machine,created,left_after_kill,running_after_kill,listed_after_restart,delete_status,left_at_end
+2026-10-24T13:40:26,arm64 macOS 26.6.2,5,5,5,0,404,5
