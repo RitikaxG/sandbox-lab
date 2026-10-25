@@ -69,3 +69,15 @@ Why B stays (Ritika):
   goes; not timed piece by piece).
 - That costs +28 ms (+28%) at p50, and A's fastest create (111 ms) is slower than B's median (100 ms), so the gap is
   real, not noise (OBSERVED).
+
+## Decision review (Ritika, 2026-10-25): where this decision lives in the code
+
+| What | Option B (`internal/runtime/docker.go`, in use) | Option A (`internal/runtime/dockercli.go`, kept for the flip) |
+| --- | --- | --- |
+| Reach `dockerd` | lines 35–44: if `DOCKER_HOST` is unset and the library's default socket `/var/run/docker.sock` is missing (it is on this Mac), use Docker Desktop's `~/.docker/run/docker.sock`; then connect | the `docker` program finds the socket itself, from its context |
+| Create a sandbox | two HTTP requests: `ContainerCreate` (line 72), `ContainerStart` (line 89) | one `docker run -d …` program run (`d.run`), which sends both |
+| Know "already deleted" | `errdefs.IsNotFound(err)` (line 149): the error's **kind** (HTTP 404), so Docker can reword its message | `strings.Contains(errOut, "No such container")`: the printed **text**; breaks if Docker changes the wording |
+| Trail for debugging | `call()` (lines 54–60) logs every Docker call with its time and error: with the SDK there is no command to paste | the command itself can be pasted |
+
+Ritika, on the third row: "if the error is of kind 'not found' it doesn't look for exact words, while with the CLI, if
+Docker changes its wording from 'No such container' to 'container does not exist', it will break."

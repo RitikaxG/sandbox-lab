@@ -1,0 +1,2 @@
+timestamp,machine,created,docker_restart_s,in_docker_after,running_after,api_listed,exec_status,delete_status,in_docker_at_end
+2026-10-25T15:59:24,arm64 macOS 26.6.2,5,20,5,0,5,500,204,4
