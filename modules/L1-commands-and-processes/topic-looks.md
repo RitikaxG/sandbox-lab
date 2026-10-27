@@ -32,3 +32,29 @@ Ritika's explain-back (2026-10-26): SIGKILL to the whole group can't be ignored,
 still stops (the advantage: a guaranteed stop, the agent never hangs on it); the trade-off is that it gets no time to
 clean up temp data or save files it was working on. Exit codes: 124 = killed by the timeout, 129 = killed because the
 client disconnected.
+
+## Tue 2026-10-27 · CUA: how does CUA run and stop work in a sandbox? (hands-on, Ritika at the keyboard)
+
+cua 0.9.0, cua-sandbox 0.9.1, macOS 26.6.2, Docker Desktop (runc). OBSERVED unless marked.
+
+The planned question (does `cua sb exec` kill the command's whole process group on Ctrl-C?) did not run: on Docker Desktop
+4.41.2 every create failed. What we measured instead is the same question one level up: **what happens to a sandbox
+when its create is stopped?**
+
+1. **Ctrl-C during create cleans up.** `cua sb create … --wait tcp:web`, Ctrl-C while it waits: `Cancelling... cua:
+   cancelled: removed t4`, exit code 130 (128 + SIGINT); the container is gone. The CLI catches Ctrl-C itself and asks
+   to cancel the create and delete what it made (SOURCE: `cua-cli/src/sandbox.rs`, `cancel_create`).
+2. **A timeout during create does not.** Same flags with `--ready-timeout 20`: exit code 1 after 25 s, and the container
+   keeps running; `cua sb list` calls it `ready`, `cua sb exec` says `not found`. CUA's docs promise "a failed create
+   deletes it" (`--keep-on-failure` reference). SOURCE (INFERENCE for the path taken): the readiness error from the
+   Docker layer leaves the upper layer's create before its cleanup block.
+3. **Two records of one sandbox.** Docker's container (with `cua.sandbox.name` labels) and CUA's own record
+   (`~/.cua/sandboxes`, written last). A create that fails before the record leaves a container `list` shows and
+   `exec` / `get` can't reach. `cua sb delete -f` removes it.
+4. **Port timing on old Docker Desktop.** On 4.41.2 the published host port appears 5–16 ms after `start` returns
+   (5/5, ~1 ms direct-socket looks); CUA reads it once right after start, so creates failed with "probe port 3211 is
+   not published". On 4.97.0 it is there at the first look (5/5).
+
+For the lab: a stop request handled by the program that started the work (Ctrl-C → cancel and delete) cleans up; a
+failure detected deep inside (a timeout in the Docker layer) returns early and skips cleanup that lives higher up.
+Still open: the exec-level kill (process group or not), on a working sandbox.
