@@ -33,7 +33,7 @@ Question: what does `machine run`/`start` create on the host, and what isolates 
   | Way | Disk | RAM | Host settings (ports) |
   | `create --image` | fresh, from the image | no | only what you pass (`-p`) |
   | `create --from` `.smolmachine` | yes, the packed disk | no | no |
-  | `branch --from` | yes, shared by CoW | yes, shared by CoW | UNKNOWN (source had no ports; not tested) |
+  | `branch --from` | yes, shared by CoW | yes, shared by CoW | remapped to a new free host port unless pinned with `-p`; a pinned taken port is refused and cleaned up (OBSERVED 2026-10-29, `day4-depth.md`) |
 - Mind map of the whole afternoon (Ritika's draft, corrected together): ![pack and branch map](pack-branch-map.png)
   Editable: [pack-branch-map.excalidraw](pack-branch-map.excalidraw) (Excalidraw → menu → Open; it replaces the open canvas).
 
@@ -95,7 +95,8 @@ Question: does Composio run agent code anywhere, and if so in what kind of sandb
   tier recreates the sandbox: memory is lost, `/mnt/files/` survives (SOURCE: same file, `configuring-sessions.mdx`).
 - **Other mode:** a local sandbox (experimental): the code runs in your own VM, container or CI box; Composio keeps
   auth and tool discovery (SOURCE: `docs/content/docs/sandbox/local.mdx`).
-- **Isolation technology: UNKNOWN.** The docs never say container, microVM or which provider. To check hands-on in
-  the lab (read-only commands through `COMPOSIO_REMOTE_BASH_TOOL`: kernel, container markers, CPUs seen).
+- **Isolation technology: a VM (INFERENCE, every clue agrees; checked 2026-10-29).** From inside, through
+  `COMPOSIO_REMOTE_BASH_TOOL`: no `/.dockerenv`, PID 1 `/sbin/init`, kernel `6.1.158+` with its own kernel threads,
+  whole machine 17 s old at the first call, 1 CPU / 976 MB. Details: `../L1-commands-and-processes/topic-looks.md` (Oct 29).
 - Ritika, in her words: "the composio's sandbox allows to run the agent code, instead of too big single tool calls,
   agent writes one script that loops inside the sandbox."

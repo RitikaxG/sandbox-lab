@@ -17,8 +17,9 @@ one by its correct ID. The 5 sandboxes became **orphans**: still running, with n
   so commands can be `exec`'d into it.
 - Each orphan keeps what a container holds: its process and memory, its cgroup and namespaces, its top filesystem
   layer (day 1). How much memory each used was not measured (UNKNOWN).
-- Left alone, each `sleep` ends after 24 h; the container then **stops but is not removed** (our create doesn't ask
-  Docker to auto-remove), so it would still show in `docker ps -a` (INFERENCE from the code; not waited for).
+- Left alone, each `sleep` ends after 24 h; the container then **stops but is not removed** (our create passes an
+  empty `HostConfig{}`, so no `AutoRemove`) and still shows in `docker ps -a`. OBSERVED 2026-10-29 with `sleep 30`:
+  5 containers `Exited (0)`, all still listed (`break_stop_api.py`, `results/l0-stop-api-orphans.csv`).
 - A caller that kept its sandbox ID had no way to delete it through the API.
 
 ## Timeline (one run, about 10 s)
@@ -42,9 +43,10 @@ There are **two lists** of sandboxes, and only one survives a crash:
 After the restart, the API answers every request from its own (now empty) list only. `DELETE` looks up the ID there,
 finds nothing, and replies 404 without ever asking Docker.
 
-Contributing: the API has no cleanup on exit at all. A gentler stop than SIGKILL would most likely leave the same 5
-orphans, because nothing in the code removes containers when the API stops (INFERENCE; candidate for tomorrow's break
-variation).
+Contributing: the API has no cleanup on exit at all. A gentler stop leaves the same 5 orphans. OBSERVED 2026-10-29:
+SIGTERM ended the API at once (exit -15: `main.go` sets no signal handler, so the default action applies) and all 5
+containers kept running. The containers are Docker's, not the API's children, so no signal to the API reaches them.
+Rerun: `python3 modules/L0-what-is-a-sandbox/break_stop_api.py` (`--signal KILL` for the original).
 
 ## How to find and clean them by hand (works without the API)
 

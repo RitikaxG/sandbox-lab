@@ -58,3 +58,83 @@ when its create is stopped?**
 For the lab: a stop request handled by the program that started the work (Ctrl-C → cancel and delete) cleans up; a
 failure detected deep inside (a timeout in the Docker layer) returns early and skips cleanup that lives higher up.
 Still open: the exec-level kill (process group or not), on a working sandbox.
+
+## Thu 2026-10-29 · CUA: does `cua sb exec` stop the whole command on Ctrl-C? (Ritika at the keyboard)
+
+cua 0.9.0, sandbox `l4` (Docker Desktop 4.97.0; `/bin/sh` in the box = dash). OBSERVED unless marked. Closes Tuesday's
+"still open". Predictions #19–#21: `predictions.md`.
+
+**For today** (details; rerun below):
+- Run 1, plain: `cua sb exec --timeout 0 l4 'sleep 601 & sleep 602'`, Ctrl-C after ~5 s. Before: `sh` 777 (parent 44 =
+  `cua-spacesd`, group 777), `sleep 601` 778, `sleep 602` 779. `cua` exited 130 and printed nothing. 10 s later all
+  three still ran, unchanged.
+- Run 2, stream: `cua sb exec -i l4 -- sh -c 'sleep 601 & sleep 602'`, Ctrl-C after ~5 s. Before: `sh` 803 (group
+  803), `sleep 601` 804, `sleep 602` 805. `cua` exited 130. After: `sh` and `sleep 602` gone; `sleep 601` alive, parent
+  1, still group 803. `/proc/804/status` SigIgn `0000000001000006` = ignores SIGINT (2) and SIGQUIT (3); the
+  foreground `sleep 602`-style process (779) ignores neither.
+
+**Patterns** (cards in `agent-infra/fundamentals/PATTERNS.md`): P1 a command becomes a family (`sh` + two sleeps);
+P4 the agent gives each command its own group, so a group kill was possible; P6 plain exec's Ctrl-C stops only the
+client on the Mac; P5 a SIGINT leaves `&` jobs alive; P2 the survivor is adopted by PID 1.
+
+**What it means for the lab:** a stop that reaches the box as a gentle signal and never escalates to SIGKILL on the
+group leaves background children behind; plain exec leaves the whole command. Same family as CUA #5588 and the
+opposite of smolvm's exec (group SIGKILL on timeout and on disconnect).
+
+**Open (checks, not guesses):** does `-i` send SIGINT to the group or to `sh` only (INFERENCE: group, since the
+foreground `sleep 602` died too)? What does "kill the command when this process ends" send, and to whom (UNKNOWN: if
+SIGKILL to the group, `sleep 601` could not survive)? Read `cua-cli` exec / `cua-spacesd` source. Whether this is a bug
+or intended: `issue-check` on the next CUA day (#5588 bug-family search, Tue Nov 3), dup search first.
+
+Ritika's explain-back (2026-10-29): we tested whether Ctrl-C, a polite stop signal (SIGINT), reaches inside the box.
+(1) With plain `cua sb exec`, Ctrl-C only stops the `cua` program on the Mac; nothing reaches the box, so the whole
+family keeps running. (2) With `-i`, the stop reaches the box: it kills `sh` and `sleep 602`, while `sleep 601` becomes
+an orphan whose parent becomes PID 1, because a program started with `&` in `sh -c` ignores SIGINT. (3) A SIGKILL
+instead would stop all of them, since SIGKILL can't be ignored (reasoned, not run).
+
+Rerun:
+```bash
+cd scratch/2026-10-27-cua-l1-handson   # needs a running sandbox (l4 removed 2026-10-29; create one first)
+.venv/bin/cua sb exec -i <name> -- sh -c 'sleep 601 & sleep 602'   # Ctrl-C after ~5 s
+docker exec <name> ps -eo pid,ppid,pgid,args | grep -E 'PID|sleep|sh -c'
+```
+
+## Thu 2026-10-29 · Composio: what does the remote bash tool do with a command that never ends? (Ritika at the keyboard)
+
+SDK `composio` 0.28.0, `COMPOSIO_REMOTE_BASH_TOOL`, session `trs_w_2dJOcTcII_` (sandbox suffix `i7q3`); script
+`scratch/2026-10-21-composio-layer1/step6_l1_bash.py`. OBSERVED unless marked. Predictions #22–#24: `predictions.md`.
+Closes L0's Composio UNKNOWN (isolation technology).
+
+**For today:**
+- The tool's own description: "Hard 3-minute (180s) execution limit". The SDK's HTTP client gives up at 60 s by
+  default (`composio_client` `DEFAULT_TIMEOUT`); the script raised it to 900 s to see Composio's limit, not ours.
+- Probe (fresh session): `uname -r` `6.1.158+`; no `/.dockerenv`; PID 1 `/sbin/init` (systemd); PID 2 `[kthreadd]`
+  and kernel worker threads in the list; every process 17 s old; 1 CPU, 976 MB, no swap.
+- `sleep 601 & sleep 602`: returned at 181.0 s with `result_type=completed`, `error=None`, and stderr "Command did not
+  finish within 180s. The workbench aborted the command to keep the sandbox responsive…". The timeout shows only as
+  stderr text, not as an error.
+- After (same session, ~334 s): `/bin/bash -l -c` gone; `sleep 601` 1701 and `sleep 602` 1702 alive, parent 1
+  (`/sbin/init`), group 344 = the group of `envd` (PID 344, the box's agent). Commands run as `/bin/bash -l -c …`
+  under `envd`, in `envd`'s own group. (The first look was cut off by the script's 3,000-character print limit; the
+  re-read was one read-only `ps` in the same session.)
+- Also running (for later, INFERENCE): `envd`, a Jupyter server started by `/root/.jupyter/start-up.sh`, a uvicorn app
+  on port 49999, Python and JavaScript kernels, `/mnt/files` mounted from Cloudflare R2 by `s3fs`. `envd` and a Jupyter
+  server on 49999 match E2B's code-interpreter sandbox (E2B runs Firecracker microVMs); not confirmed.
+
+**Patterns** (cards in `agent-infra/fundamentals/PATTERNS.md`): P9 the timeout is enforced and something is sent;
+P4 inverted: the command shares the agent's group, so a group kill would kill `envd`, and only the parent is stopped;
+P2 both sleeps orphaned (`sleep 602` never got a signal); P10 the box has its own kernel (kernel threads, whole machine
+17 s old at the first call): a VM (INFERENCE, every clue agrees).
+
+**What it means for the lab:** three agents, three answers to "who kills what": smolvm gives each command its own
+group and SIGKILLs it (nothing left); CUA gives its own group but sends only SIGINT, or nothing (`&` jobs or everything
+left); Composio leaves the command in the agent's group and stops only the shell (every child left, until the
+sandbox ends). A 180 s limit doesn't bound what the command started.
+
+**Open:** which signal Composio sends to `bash` (UNKNOWN; not visible from inside after the fact). How long the
+orphans live: until the sandbox is stopped (session lifetime UNKNOWN). Whether it's E2B (INFERENCE above).
+
+Ritika's explain-back (2026-10-29): Composio stopped the command at 180 s by killing the parent `bash` only; `sleep 602`
+received no signal at all, and both sleeps became orphans, which we can tell because their PPID became 1 (`/sbin/init`).
+The box is a VM: `/sbin/init` is a full startup program as PID 1, there is no `/.dockerenv`, `uname -r` is not a
+typical distro kernel name, and the process list shows the kernel's own worker threads, which a container can't see.

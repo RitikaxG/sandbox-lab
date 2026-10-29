@@ -87,8 +87,10 @@ Rerun: `python3 break_restart_docker.py`. Raw: `../../results/l0-restart-docker.
 
 - The reverse of break 1: there the API forgot sandboxes Docker still had; here the API believes in `running`
   sandboxes that Docker has stopped. Nothing tells the API that Docker restarted.
-- Exit code 255, not 137: INFERENCE: the processes died with the VM, so Docker never saw a normal exit or a SIGKILL from
-  itself and recorded 255 ("unknown"); not checked in Docker's code.
+- Exit code 255, not 137: SOURCE-VERIFIED 2026-10-29 (day 4): on start, Docker's `restore()` (moby `daemon/daemon.go`)
+  gives a container it had saved as running, now not alive in containerd and with no exit status, `ExitCode = 255`
+  (containerd `UnknownExitStatus = 255`, "unable to determine the exit status"). That the processes died with the VM,
+  without Docker's own clean stop (which would show 143 or 137), stays INFERENCE. Details: `day4-depth.md`.
 - Predictions 15, 16, 18 right, 17 wrong (409 picked, 500 seen); score 11 / 18.
 
 **Why exec gave 500, not the API's own 409 (explained with Ritika):** the 409 check in `server.go`
