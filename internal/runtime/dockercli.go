@@ -35,7 +35,7 @@ func (d *DockerCLI) run(ctx context.Context, args ...string) (stdout, stderr str
 
 func (d *DockerCLI) Create(ctx context.Context, spec Spec) (string, error) {
 	// `docker run -d` = create + start in one program run; it prints the new container's ID.
-	args := []string{"run", "-d",
+	args := []string{"run", "-d", "--init", // decision 002, init line
 		"--name", "sandbox-" + spec.SandboxID,
 		"--label", LabelOwner + "=1",
 		"--label", LabelSandboxID + "=" + spec.SandboxID,
@@ -48,9 +48,19 @@ func (d *DockerCLI) Create(ctx context.Context, spec Spec) (string, error) {
 	return strings.TrimSpace(out), nil // the ID is the printed text, cut out of stdout
 }
 
-func (d *DockerCLI) Exec(ctx context.Context, runtimeID string, cmd []string) (ExecResult, error) {
+// Exec runs the command with no stop: decision 002's stop is built on the SDK runtime only. This runtime stays
+// for decision 001's flip, which needs create and delete.
+func (d *DockerCLI) Exec(ctx context.Context, runtimeID string, cmd []string, opts ExecOpts) (ExecResult, error) {
+	if opts.Timeout > 0 {
+		return ExecResult{}, errors.New("timeout and stop (decision 002) need -runtime docker")
+	}
 	out, errOut, err := d.run(ctx, append([]string{"exec", runtimeID}, cmd...)...)
-	res := ExecResult{Stdout: out, Stderr: errOut}
+	res := ExecResult{Stdout: out, Stderr: errOut, StoppedBy: StoppedNone, Leaks: []Proc{}}
+	if opts.Output != nil {
+		opts.Output("stdout", []byte(out))
+		opts.Output("stderr", []byte(errOut))
+		res.Stdout, res.Stderr = "", ""
+	}
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) {
 		// docker passes the command's exit code on as its own; 125-127 mean docker itself failed.
@@ -58,6 +68,14 @@ func (d *DockerCLI) Exec(ctx context.Context, runtimeID string, cmd []string) (E
 		return res, nil
 	}
 	return res, err
+}
+
+func (d *DockerCLI) Processes(ctx context.Context, runtimeID string) ([]Proc, error) {
+	out, errOut, err := d.run(ctx, append([]string{"exec", runtimeID}, strings.Fields(psCmdLine)...)...)
+	if err != nil {
+		return nil, errors.New(strings.TrimSpace(errOut))
+	}
+	return parsePS(out), nil
 }
 
 func (d *DockerCLI) Delete(ctx context.Context, runtimeID string) error {

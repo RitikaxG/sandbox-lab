@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,7 +27,12 @@ type Sandbox struct {
 	Error     string    `json:"error,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 	CreateMS  int64     `json:"create_ms"` // time spent in runtime.Create (create + start)
+
+	basePIDs map[int]bool // the sandbox's own processes, seen right after create; never counted as leaks
 }
+
+// grace is decision 002 step 2: the time between SIGTERM and SIGKILL when a command is stopped.
+const grace = 2 * time.Second
 
 // Server holds the sandbox list in memory only (L0): if this process dies, the list is gone,
 // but the containers in Docker are not. L2 replaces this map with Postgres.
@@ -93,6 +99,10 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, out)
 		return
 	}
+	base := s.baseline(rid)
+	s.mu.Lock()
+	sb.basePIDs = base
+	s.mu.Unlock()
 	log.Printf("api: create %s -> %s in %d ms", sb.ID, short(rid), ms)
 	writeJSON(w, http.StatusCreated, out)
 }
@@ -117,8 +127,35 @@ func (s *Server) get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, sb)
 }
 
+// baseline records the sandbox's own processes (tini as PID 1 and the main program it starts), so a later
+// stop can tell them from leftovers. tini may not have started the main program the instant Create returns,
+// so it waits briefly for a child of PID 1.
+func (s *Server) baseline(rid string) map[int]bool {
+	base := map[int]bool{}
+	for deadline := time.Now().Add(time.Second); ; {
+		procs, err := s.rt.Processes(context.Background(), rid)
+		if err != nil {
+			log.Printf("api: baseline %s: %v", short(rid), err)
+			return base
+		}
+		hasMain := false
+		for _, p := range procs {
+			if !strings.HasPrefix(p.Args, "ps ") {
+				base[p.PID] = true
+				hasMain = hasMain || p.PPID == 1
+			}
+		}
+		if hasMain || time.Now().After(deadline) {
+			return base
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
 type execReq struct {
-	Cmd []string `json:"cmd"`
+	Cmd      []string `json:"cmd"`
+	TimeoutS float64  `json:"timeout_s"` // 0 or absent = no time limit (a client disconnect still stops it)
+	Stream   bool     `json:"stream"`    // true = output as it arrives, one JSON object per line, result last
 }
 
 func (s *Server) exec(w http.ResponseWriter, r *http.Request) {
@@ -133,15 +170,51 @@ func (s *Server) exec(w http.ResponseWriter, r *http.Request) {
 	}
 	var req execReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.Cmd) == 0 {
-		writeErr(w, http.StatusBadRequest, `body must be {"cmd": ["ls", "/"]}`)
+		writeErr(w, http.StatusBadRequest, `body must be {"cmd": ["ls", "/"]}, optional "timeout_s": 5, "stream": true`)
 		return
 	}
-	res, err := s.rt.Exec(r.Context(), sb.RuntimeID, req.Cmd)
+	opts := runtime.ExecOpts{
+		Timeout:  time.Duration(req.TimeoutS * float64(time.Second)),
+		Grace:    grace,
+		Baseline: sb.basePIDs,
+	}
+
+	// r.Context() ends when the client goes away: the runtime then stops the command (stopped_by "disconnect").
+	if !req.Stream {
+		res, err := s.rt.Exec(r.Context(), sb.RuntimeID, req.Cmd, opts)
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		s.logExec(sb.ID, req.Cmd, res)
+		writeJSON(w, http.StatusOK, res)
+		return
+	}
+
+	// Streaming: one JSON object per line, sent as soon as the output arrives; the result is the last line.
+	w.Header().Set("Content-Type", "application/x-ndjson")
+	w.WriteHeader(http.StatusOK)
+	flusher, _ := w.(http.Flusher)
+	enc := json.NewEncoder(w)
+	send := func(v any) {
+		enc.Encode(v) // fails once the client is gone; the runtime finds out through r.Context()
+		if flusher != nil {
+			flusher.Flush()
+		}
+	}
+	opts.Output = func(stream string, p []byte) { send(map[string]string{"stream": stream, "data": string(p)}) }
+	res, err := s.rt.Exec(r.Context(), sb.RuntimeID, req.Cmd, opts)
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, err.Error())
+		send(map[string]string{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, res)
+	s.logExec(sb.ID, req.Cmd, res)
+	send(map[string]any{"result": res})
+}
+
+func (s *Server) logExec(id string, cmd []string, res runtime.ExecResult) {
+	log.Printf("api: exec %s %q -> exit %d, stopped_by %s, stop %d ms, %d leaks",
+		id, strings.Join(cmd, " "), res.ExitCode, res.StoppedBy, res.StopMS, len(res.Leaks))
 }
 
 func (s *Server) delete(w http.ResponseWriter, r *http.Request) {

@@ -21,7 +21,7 @@ Source: smolvm main `907c2334`, guest agent `crates/smolvm-agent/src/main.rs` (V
 4. **Why the whole group:** the code comment: killing only `sh` leaves `sleep` holding the output pipe, so the agent's
    output readers never see end-of-file and the agent hangs. This is the opposite of CUA #5588, where only the parent
    was killed and the children (serve daemons) survived.
-5. **What escapes (INFERENCE, to test in the lab):** a child that calls `setsid` itself, i.e. daemonizes, leaves the
+5. **What escapes (INFERENCE, to test in the lab; mechanism OBSERVED in Docker 2026-10-30, prediction #36: `kill -KILL -<group>` left the `setsid sleep` running, reparented to PID 1; smolvm's agent itself still to test):** a child that calls `setsid` itself, i.e. daemonizes, leaves the
    group, so `killpg` misses it and it survives the timeout or disconnect. Same for anything started with `nohup … &`
    plus `setsid`. The killpg call is `#[cfg(target_os = "linux")]`; the guest is Linux, so it always runs there.
 
