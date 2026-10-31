@@ -1,0 +1,13 @@
+date,run,client_signal,ignore_term,ticks,notice_ms,stopped_by,exit_code,stop_ms,api_leaks,ps_after
+2026-10-31T11:19:51,1,KILL,False,4,1.3,disconnect,143,86,0,"PID   PPID  PGID  SID   STAT COMMAND
+    1     0     1     1 S    /sbin/docker-init -- sleep 86400
+    7     1     7     1 S    sleep 86400
+   48     0    48    48 R    ps -o pid,ppid,pgid,sid,stat,args"
+2026-10-31T11:19:52,2,KILL,False,4,1.1,disconnect,143,67,0,"PID   PPID  PGID  SID   STAT COMMAND
+    1     0     1     1 S    /sbin/docker-init -- sleep 86400
+    7     1     7     1 S    sleep 86400
+   82     0    82    82 R    ps -o pid,ppid,pgid,sid,stat,args"
+2026-10-31T11:19:54,3,KILL,False,4,1.0,disconnect,143,76,0,"PID   PPID  PGID  SID   STAT COMMAND
+    1     0     1     1 S    /sbin/docker-init -- sleep 86400
+    7     1     7     1 S    sleep 86400
+  116     0   116   116 R    ps -o pid,ppid,pgid,sid,stat,args"

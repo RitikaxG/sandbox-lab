@@ -116,3 +116,12 @@ Both confirmed by Ritika (2026-10-30, after the decision review).
   them is not enough: switch the leak step from "report" to "kill" (option D's sweep). The flip measures this.
 - The 2 s grace period turns out too short for a real cleanup (a test runner removing temp files), or too long for an
   agent waiting on a hung command: change the number, not the steps.
+
+## Update 2026-10-31: after the breaks and the flip (Ritika)
+
+The first trigger above fired, but not as written: option D's sweep (`kill -KILL -1`) also killed the agent's dev
+server and the sandbox's main program, which ended the sandbox (#44). Step 4 becomes: count the leftovers **this exec
+created** (a process snapshot before each exec), report them, and kill them, unless the caller sends
+`keep_leftovers: true` for a server it started on purpose. Added: `pids.max` 1,024 at create; a deadline on every
+helper exec and the reason when a check fails; `exited_before_stop`; a default 24x80 terminal size. Evidence and
+the full gap list: `postmortems/002-commands-that-dont-stop-cleanly.md`.

@@ -7,12 +7,16 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/coder/websocket"
+	"github.com/coder/websocket/wsjson"
 
 	"github.com/RitikaxG/sandbox-lab/internal/runtime"
 )
@@ -53,6 +57,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /sandboxes", s.list)
 	mux.HandleFunc("GET /sandboxes/{id}", s.get)
 	mux.HandleFunc("POST /sandboxes/{id}/exec", s.exec)
+	mux.HandleFunc("GET /sandboxes/{id}/terminal", s.terminal)
 	mux.HandleFunc("DELETE /sandboxes/{id}", s.delete)
 	return mux
 }
@@ -156,6 +161,7 @@ type execReq struct {
 	Cmd      []string `json:"cmd"`
 	TimeoutS float64  `json:"timeout_s"` // 0 or absent = no time limit (a client disconnect still stops it)
 	Stream   bool     `json:"stream"`    // true = output as it arrives, one JSON object per line, result last
+	Sweep    bool     `json:"sweep"`     // decision 002 option D, for the flip: SIGKILL everything but PID 1 after
 }
 
 func (s *Server) exec(w http.ResponseWriter, r *http.Request) {
@@ -177,6 +183,7 @@ func (s *Server) exec(w http.ResponseWriter, r *http.Request) {
 		Timeout:  time.Duration(req.TimeoutS * float64(time.Second)),
 		Grace:    grace,
 		Baseline: sb.basePIDs,
+		Sweep:    req.Sweep,
 	}
 
 	// r.Context() ends when the client goes away: the runtime then stops the command (stopped_by "disconnect").
@@ -210,6 +217,97 @@ func (s *Server) exec(w http.ResponseWriter, r *http.Request) {
 	}
 	s.logExec(sb.ID, req.Cmd, res)
 	send(map[string]any{"result": res})
+}
+
+// termStart is the first message on a terminal connection.
+type termStart struct {
+	Cmd      []string `json:"cmd"`
+	TimeoutS float64  `json:"timeout_s"` // 0 = no time limit (closing the connection still stops it)
+	Rows     uint     `json:"rows"`      // first window size; 0 = Docker's default
+	Cols     uint     `json:"cols"`
+}
+
+// terminal runs one command with a terminal over a WebSocket (Ritika, 2026-10-31: one connection for keys,
+// output and resize). Client to API: the first message is termStart (JSON text); after that, binary messages are
+// keys and text messages are {"resize": [rows, cols]}. API to client: binary messages are what the terminal shows;
+// the last message is {"result": ...} or {"error": ...} (JSON text).
+func (s *Server) terminal(w http.ResponseWriter, r *http.Request) {
+	sb, ok := s.lookup(r.PathValue("id"))
+	if !ok {
+		writeErr(w, http.StatusNotFound, "no such sandbox")
+		return
+	}
+	if sb.State != "running" {
+		writeErr(w, http.StatusConflict, "sandbox is "+sb.State)
+		return
+	}
+	c, err := websocket.Accept(w, r, nil)
+	if err != nil {
+		return // Accept has already answered the client
+	}
+	defer c.CloseNow()
+
+	var start termStart
+	readCtx, cancelRead := context.WithTimeout(r.Context(), 10*time.Second)
+	err = wsjson.Read(readCtx, c, &start)
+	cancelRead()
+	if err != nil || len(start.Cmd) == 0 {
+		c.Close(websocket.StatusPolicyViolation, `first message must be {"cmd": ["sh"], "timeout_s": 0, "rows": 24, "cols": 80}`)
+		return
+	}
+
+	// After the upgrade, Go's HTTP server no longer watches the connection (P18): r.Context() won't end when
+	// the client goes. The read loop below is what notices, and it ends ctx (stopped_by "disconnect").
+	ctx, gone := context.WithCancel(context.Background())
+	defer gone()
+	keys, keysIn := io.Pipe()
+	resize := make(chan [2]uint)
+	go func() {
+		defer gone()
+		defer keysIn.Close()
+		for {
+			typ, data, err := c.Read(ctx)
+			if err != nil {
+				return
+			}
+			if typ == websocket.MessageBinary {
+				keysIn.Write(data)
+				continue
+			}
+			var msg struct {
+				Resize [2]uint `json:"resize"`
+			}
+			if json.Unmarshal(data, &msg) == nil && msg.Resize[0] > 0 {
+				select {
+				case resize <- msg.Resize:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+
+	opts := runtime.ExecOpts{
+		Timeout:  time.Duration(start.TimeoutS * float64(time.Second)),
+		Grace:    grace,
+		Baseline: sb.basePIDs,
+		Tty:      true,
+		Input:    keys,
+		Size:     [2]uint{start.Rows, start.Cols},
+		Resize:   resize,
+		Output: func(_ string, p []byte) {
+			c.Write(context.Background(), websocket.MessageBinary, p) // fails once the client is gone
+		},
+	}
+	res, err := s.rt.Exec(ctx, sb.RuntimeID, start.Cmd, opts)
+	if err != nil {
+		wsjson.Write(context.Background(), c, map[string]string{"error": err.Error()})
+		c.Close(websocket.StatusInternalError, "exec failed")
+		return
+	}
+	s.logExec(sb.ID, start.Cmd, res)
+	wsjson.Write(context.Background(), c, map[string]any{"result": res})
+	c.Close(websocket.StatusNormalClosure, "")
 }
 
 func (s *Server) logExec(id string, cmd []string, res runtime.ExecResult) {

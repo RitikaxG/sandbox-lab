@@ -2,7 +2,10 @@ module github.com/RitikaxG/sandbox-lab
 
 go 1.25.5
 
-require github.com/docker/docker v28.1.1+incompatible
+require (
+	github.com/coder/websocket v1.8.12
+	github.com/docker/docker v28.1.1+incompatible
+)
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect

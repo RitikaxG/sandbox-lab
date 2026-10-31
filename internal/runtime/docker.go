@@ -129,9 +129,16 @@ func (d *Docker) Exec(ctx context.Context, runtimeID string, cmd []string, opts 
 	wrapped := append([]string{"sh", "-c", `printf '` + pidMarker + `%s\n' $$ >&2; exec "$@"`, "sh"}, cmd...)
 
 	// 1. POST /containers/{id}/exec: register the command
+	// With a terminal (opts.Tty), Docker gives the command a pty: stdin is the terminal too, and stdout and
+	// stderr arrive as one stream.
+	var size *[2]uint
+	if opts.Tty && opts.Size != [2]uint{} {
+		size = &[2]uint{opts.Size[0], opts.Size[1]}
+	}
 	start := time.Now()
 	ex, err := d.cli.ContainerExecCreate(bg, runtimeID, container.ExecOptions{
 		Cmd: wrapped, AttachStdout: true, AttachStderr: true,
+		Tty: opts.Tty, AttachStdin: opts.Tty, ConsoleSize: size,
 	})
 	call("exec-create "+short(runtimeID), start, err)
 	if err != nil {
@@ -140,7 +147,7 @@ func (d *Docker) Exec(ctx context.Context, runtimeID string, cmd []string, opts 
 
 	// 2. POST /exec/{id}/start: run it; stdout and stderr come back mixed on one connection
 	start = time.Now()
-	att, err := d.cli.ContainerExecAttach(bg, ex.ID, container.ExecAttachOptions{})
+	att, err := d.cli.ContainerExecAttach(bg, ex.ID, container.ExecAttachOptions{Tty: opts.Tty, ConsoleSize: size})
 	if err != nil {
 		call("exec-attach "+short(runtimeID), start, err)
 		return res, err
@@ -150,21 +157,49 @@ func (d *Docker) Exec(ctx context.Context, runtimeID string, cmd []string, opts 
 		switch {
 		case opts.Output != nil:
 			opts.Output(stream, p)
-		case stream == "stdout":
-			stdout.Write(p)
-		default:
+		case stream == "stderr":
 			stderr.Write(p)
+		default: // stdout, or tty
+			stdout.Write(p)
 		}
 	}
 	pidCh := make(chan int, 1)
-	done := make(chan error, 1) // the output stream ended: nothing holds the command's stdout/stderr any more
-	go func() {
-		_, err := stdcopy.StdCopy(
-			writerFunc(func(p []byte) { emit("stdout", p) }),
-			&pidReader{pid: pidCh, next: func(p []byte) { emit("stderr", p) }},
-			att.Reader) // split the mixed stream back into two
-		done <- err
-	}()
+	// The output stream ended: either nothing holds the command's output any more, or Docker cut it 2 s after the
+	// command's own process exited while a child still held it (break 3, #39). Not proof that everything is gone.
+	done := make(chan error, 1)
+	if opts.Tty {
+		// One stream, not split into two: the PID line comes first, then everything the terminal shows.
+		go func() {
+			_, err := io.Copy(&pidReader{pid: pidCh, next: func(p []byte) { emit("tty", p) }}, att.Reader)
+			done <- err
+		}()
+		if opts.Input != nil {
+			go io.Copy(att.Conn, opts.Input) // keys in; the terminal itself turns Ctrl-C into SIGINT
+		}
+		finished := make(chan struct{})
+		defer close(finished)
+		go func() {
+			for {
+				select {
+				case sz := <-opts.Resize:
+					// POST /exec/{id}/resize: the kernel then sends SIGWINCH to the terminal's foreground group
+					t := time.Now()
+					err := d.cli.ContainerExecResize(bg, ex.ID, container.ResizeOptions{Height: sz[0], Width: sz[1]})
+					call("exec-resize "+short(runtimeID)+" "+strconv.Itoa(int(sz[0]))+"x"+strconv.Itoa(int(sz[1])), t, err)
+				case <-finished:
+					return
+				}
+			}
+		}()
+	} else {
+		go func() {
+			_, err := stdcopy.StdCopy(
+				writerFunc(func(p []byte) { emit("stdout", p) }),
+				&pidReader{pid: pidCh, next: func(p []byte) { emit("stderr", p) }},
+				att.Reader) // split the mixed stream back into two
+			done <- err
+		}()
+	}
 
 	var timeout <-chan time.Time
 	if opts.Timeout > 0 {
@@ -197,6 +232,9 @@ func (d *Docker) Exec(ctx context.Context, runtimeID string, cmd []string, opts 
 	procs, err := d.Processes(bg, runtimeID)
 	if err != nil {
 		return res, err
+	}
+	if opts.Sweep {
+		procs = d.sweep(bg, runtimeID, procs, &res)
 	}
 	for _, p := range procs {
 		if !opts.Baseline[p.PID] && !strings.HasPrefix(p.Args, psCmdLine) {
@@ -238,8 +276,9 @@ func (d *Docker) stop(ctx context.Context, runtimeID string, pidCh <-chan int, d
 	// 1. SIGTERM to the group
 	d.signal(ctx, runtimeID, "TERM", pgid)
 
-	// 2. Wait up to the grace period. The stream ending early means every process holding the
-	//    command's output is gone, so there is nothing left to wait for.
+	// 2. Wait up to the grace period; stop waiting once the output stream ends. That usually means every holder
+	//    is gone, but Docker also cuts the stream 2 s after the command's own process exits, even while a child
+	//    (a setsid escapee) still holds it (moby daemon/monitor.go; break 3, #39). Steps 3 and 4 cover that case.
 	streamDone := false
 	select {
 	case <-done:
@@ -261,6 +300,32 @@ func (d *Docker) stop(ctx context.Context, runtimeID string, pidCh <-chan int, d
 		}
 	}
 	att.Close()
+}
+
+// sweep is decision 002's option D, built for the flip (module loop step 8): SIGKILL every process in the sandbox
+// except PID 1, with `kill -KILL -1` from a fresh exec. It records what was there before and is gone after (Swept),
+// and returns what is left. If the sandbox itself stopped (no process left to exec into), it says so in SweepNote.
+func (d *Docker) sweep(ctx context.Context, runtimeID string, before []Proc, res *ExecResult) []Proc {
+	start := time.Now()
+	_, err := d.run(ctx, runtimeID, []string{"sh", "-c", "kill -KILL -1"})
+	call("sweep kill -KILL -1 "+short(runtimeID), start, err)
+	after, err := d.Processes(ctx, runtimeID)
+	if err != nil {
+		// Couldn't look: say so, and don't guess what was killed (#41: "couldn't count" must not read as "none").
+		res.SweepNote = "after the sweep: " + err.Error()
+		return nil
+	}
+	left := map[int]bool{}
+	for _, p := range after {
+		left[p.PID] = true
+	}
+	res.Swept = []Proc{}
+	for _, p := range before {
+		if !left[p.PID] && !strings.HasPrefix(p.Args, psCmdLine) {
+			res.Swept = append(res.Swept, p)
+		}
+	}
+	return after
 }
 
 // signal sends sig to every process in group pgid, from a second exec inside the sandbox.

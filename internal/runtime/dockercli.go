@@ -51,8 +51,8 @@ func (d *DockerCLI) Create(ctx context.Context, spec Spec) (string, error) {
 // Exec runs the command with no stop: decision 002's stop is built on the SDK runtime only. This runtime stays
 // for decision 001's flip, which needs create and delete.
 func (d *DockerCLI) Exec(ctx context.Context, runtimeID string, cmd []string, opts ExecOpts) (ExecResult, error) {
-	if opts.Timeout > 0 {
-		return ExecResult{}, errors.New("timeout and stop (decision 002) need -runtime docker")
+	if opts.Timeout > 0 || opts.Tty {
+		return ExecResult{}, errors.New("timeout, stop (decision 002) and terminals need -runtime docker")
 	}
 	out, errOut, err := d.run(ctx, append([]string{"exec", runtimeID}, cmd...)...)
 	res := ExecResult{Stdout: out, Stderr: errOut, StoppedBy: StoppedNone, Leaks: []Proc{}}

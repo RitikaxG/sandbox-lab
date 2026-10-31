@@ -1,0 +1,5 @@
+date,server_leaks,status,call_ms,exit_code,stopped_by,leaks,swept,sweep_note,container_after,ps_after,echo
+2026-10-31T17:05:59,"20 sleep 900 (parent 1, group 20, S)",200,3289,143,timeout,,,"after the sweep: unable to upgrade to tcp, received 409",exited exit 137,,"500 in 3 ms: {
+  ""error"": ""Error response from daemon: container 9ed906cf92843fe648c3c8b1305c2f2d188639bd717711d7ab9044de8c31d85d is not running""
+}
+"

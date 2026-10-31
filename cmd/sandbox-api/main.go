@@ -18,6 +18,7 @@ func main() {
 	addr := flag.String("addr", "localhost:8080", "address to listen on")
 	which := flag.String("runtime", "docker", "docker (Engine SDK, decision 001) or docker-cli (option A, for the flip)")
 	flag.Parse()
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds) // L1 break 2 times the API's reaction to the millisecond
 
 	var rt runtime.Runtime
 	var err error

@@ -34,7 +34,8 @@ func (r *pidReader) Write(p []byte) (int, error) {
 		return len(p), nil // the line isn't complete yet
 	}
 	r.seen = true
-	line, rest := string(r.buf[:nl]), r.buf[nl+1:]
+	// A terminal turns "\n" into "\r\n", so the line may end in "\r".
+	line, rest := strings.TrimSuffix(string(r.buf[:nl]), "\r"), r.buf[nl+1:]
 	if pid, err := strconv.Atoi(strings.TrimPrefix(line, pidMarker)); err == nil && strings.HasPrefix(line, pidMarker) {
 		r.pid <- pid
 	} else {

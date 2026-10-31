@@ -1,0 +1,3 @@
+date,pids_limit,bomb_status,bomb_call_ms,exit_code,stopped_by,stop_ms,leaks,bomb_error,peak_pids,pids_3s_after,echo_ok,echo_ms,docker_ps_ms,cleanup,pids_timeline
+2026-10-31T13:18:57,0,0,60001,,,,,timed out,,,False,60000,timeout after 60037,api 0; docker rm -f timeout 60024 ms,
+2026-10-31T13:43:39,1000,200,2599,0,none,0,1007,,1000,999,False,65,129,api 445 ms,0.0s:2 1.0s:2 2.0s:999 3.0s:1000 4.1s:999 5.1s:999 6.1s:999

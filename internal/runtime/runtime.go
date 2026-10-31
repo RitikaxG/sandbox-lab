@@ -4,6 +4,7 @@ package runtime
 
 import (
 	"context"
+	"io"
 	"time"
 )
 
@@ -30,6 +31,15 @@ type ExecOpts struct {
 	Grace    time.Duration                 // decision 002 step 2: time between SIGTERM and SIGKILL
 	Output   func(stream string, p []byte) // called as output arrives ("stdout" or "stderr"); nil = keep it in the result
 	Baseline map[int]bool                  // the sandbox's own processes (PIDs seen right after create); never counted as leaks
+
+	// Terminal mode (L1 day 2): the command gets a terminal (a pty) instead of plain pipes. Its stdout and stderr
+	// then arrive as one stream, "tty"; keys go in through Input; Resize changes the window size while it runs.
+	Sweep bool // decision 002 option D, for the flip: after the command, SIGKILL everything but PID 1
+
+	Tty    bool
+	Input  io.Reader      // keys for the terminal; read until it ends
+	Size   [2]uint        // the terminal's first [rows, cols]; zero = whatever Docker gives a new pty
+	Resize <-chan [2]uint // new [rows, cols] while the command runs
 }
 
 // ExecResult is the outcome of running one command inside a sandbox.
@@ -45,6 +55,10 @@ type ExecResult struct {
 	// aren't the sandbox's own
 	// (e.g. a child that left the group with setsid). Reported, not killed.
 	Leaks []Proc `json:"leaks"`
+	// Option D's sweep (ExecOpts.Sweep, for the flip only): what the sweep killed, and a note if the sandbox
+	// could not be read after it.
+	Swept     []Proc `json:"swept,omitempty"`
+	SweepNote string `json:"sweep_note,omitempty"`
 }
 
 const (
