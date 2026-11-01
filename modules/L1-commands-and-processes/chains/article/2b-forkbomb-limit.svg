@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="599" font-family="Helvetica, Arial, sans-serif" font-size="13">
+<defs><marker id="ah" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#b42318"/></marker></defs>
+<rect width="1280" height="599" fill="#ffffff"/>
+<text x="20" y="32" font-size="19" font-weight="bold" fill="#111">2b. The same bomb with a limit of 1,000 processes: contained, but reported as success</text>
+<rect x="100" y="70" width="230" height="492" fill="#f7f7f8" stroke="#d0d5dd"/>
+<text x="215.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">THE AGENT</text>
+<rect x="330" y="70" width="290" height="492" fill="#ffffff" stroke="#d0d5dd"/>
+<text x="475.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">OUR SANDBOX API</text>
+<rect x="620" y="70" width="290" height="492" fill="#f7f7f8" stroke="#d0d5dd"/>
+<text x="765.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">DOCKER</text>
+<rect x="910" y="70" width="350" height="492" fill="#ffffff" stroke="#d0d5dd"/>
+<text x="1085.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">INSIDE THE SANDBOX</text>
+<text x="12" y="90" font-weight="bold" fill="#111">time</text>
+<line x1="92" y1="100" x2="92" y2="556" stroke="#98a2b3" marker-end="url(#ah)"/>
+<text x="12" y="118" fill="#475467" font-weight="bold">start</text>
+<text x="12" y="224" fill="#475467" font-weight="bold">0.2 s</text>
+<text x="12" y="313" fill="#475467" font-weight="bold">2 to 2.6 s</text>
+<text x="12" y="402" fill="#475467" font-weight="bold">next call</text>
+<text x="12" y="508" fill="#475467" font-weight="bold">after</text>
+<rect x="108" y="100" width="214" height="80" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="118" y="118" fill="#111">Same fork bomb, 3 s</text>
+<text x="118" y="135" fill="#111">timeout</text>
+<text x="118" y="152" fill="#111">process limit set to</text>
+<text x="118" y="169" fill="#111">1,000 (pids.max)</text>
+<rect x="918" y="100" width="334" height="80" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="928" y="118" fill="#111">sh starts the bomb and exits at once</text>
+<rect x="918" y="206" width="334" height="63" rx="6" fill="#e7f6ec" stroke="#067647" stroke-width="1.5"/>
+<text x="928" y="224" fill="#111">986 processes, then a steady 1,000: the</text>
+<text x="928" y="241" fill="#111">limit holds. The rest of the machine is</text>
+<text x="928" y="258" fill="#111">fine</text>
+<rect x="628" y="295" width="274" height="63" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="638" y="313" fill="#111">Cuts the output after 2 s, as</text>
+<text x="638" y="330" fill="#111">before</text>
+<rect x="108" y="295" width="214" height="63" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="118" y="313" fill="#111">Result: success, exit 0,</text>
+<text x="118" y="330" fill="#111">not stopped</text>
+<text x="118" y="347" fill="#111">about 1,000 leftovers</text>
+<rect x="108" y="384" width="214" height="80" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="118" y="402" fill="#111">Run: echo hi</text>
+<text x="118" y="419" fill="#111">Result: success (HTTP</text>
+<text x="118" y="436" fill="#111">200), exit 128, no</text>
+<text x="118" y="453" fill="#111">output, 0 leftovers</text>
+<rect x="338" y="384" width="274" height="80" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="348" y="402" fill="#111">Its leftover count could not</text>
+<text x="348" y="419" fill="#111">start a process either. Our code</text>
+<text x="348" y="436" fill="#111">ignored that failure and</text>
+<text x="348" y="453" fill="#111">reported 0</text>
+<rect x="918" y="384" width="334" height="80" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="928" y="402" fill="#111">999 bombs still running, 1 short of the</text>
+<text x="928" y="419" fill="#111">limit</text>
+<text x="928" y="436" fill="#111">echo never prints 'hi'</text>
+<rect x="108" y="490" width="214" height="46" rx="6" fill="#e7f6ec" stroke="#067647" stroke-width="1.5"/>
+<text x="118" y="508" fill="#111">Delete the sandbox: done</text>
+<text x="118" y="525" fill="#111">in 0.4 s</text>
+<rect x="628" y="490" width="274" height="46" rx="6" fill="#e7f6ec" stroke="#067647" stroke-width="1.5"/>
+<text x="638" y="508" fill="#111">docker ps: answers in 0.1 s</text>
+<text x="20" y="576" font-size="12" fill="#475467">The limit kept the damage inside one sandbox. But the API reported a command that printed nothing as a success. One run.</text>
+</svg>

@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="688" font-family="Helvetica, Arial, sans-serif" font-size="13">
+<defs><marker id="ah" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#b42318"/></marker></defs>
+<rect width="1280" height="688" fill="#ffffff"/>
+<text x="20" y="32" font-size="19" font-weight="bold" fill="#111">4. 'Kill every process' cleans up the leak, and the sandbox with it</text>
+<rect x="100" y="70" width="230" height="581" fill="#f7f7f8" stroke="#d0d5dd"/>
+<text x="215.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">THE AGENT</text>
+<rect x="330" y="70" width="290" height="581" fill="#ffffff" stroke="#d0d5dd"/>
+<text x="475.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">OUR SANDBOX API</text>
+<rect x="620" y="70" width="290" height="581" fill="#f7f7f8" stroke="#d0d5dd"/>
+<text x="765.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">DOCKER</text>
+<rect x="910" y="70" width="350" height="581" fill="#ffffff" stroke="#d0d5dd"/>
+<text x="1085.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">INSIDE THE SANDBOX</text>
+<text x="12" y="90" font-weight="bold" fill="#111">time</text>
+<line x1="92" y1="100" x2="92" y2="645" stroke="#98a2b3" marker-end="url(#ah)"/>
+<text x="12" y="118" fill="#475467" font-weight="bold">setup</text>
+<text x="12" y="207" fill="#475467" font-weight="bold">call 1</text>
+<text x="12" y="330" fill="#475467" font-weight="bold">call 2</text>
+<text x="12" y="419" fill="#475467" font-weight="bold">next</text>
+<text x="12" y="491" fill="#475467" font-weight="bold">3.3 s</text>
+<text x="12" y="580" fill="#475467" font-weight="bold">next call</text>
+<rect x="918" y="100" width="334" height="63" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="928" y="118" fill="#111">PID 1 is tini. Its one child is the</text>
+<text x="928" y="135" fill="#111">sandbox's main program (sleep 86400).</text>
+<text x="928" y="152" fill="#111">The container lives as long as PID 1</text>
+<rect x="108" y="189" width="214" height="97" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="118" y="207" fill="#111">Start a dev server in the</text>
+<text x="118" y="224" fill="#111">background:</text>
+<text x="118" y="241" fill="#111">setsid sleep 900 &gt;</text>
+<text x="118" y="258" fill="#111">/dev/null 2&gt;&amp;1 &amp;</text>
+<text x="118" y="275" fill="#111">Result in 62 ms</text>
+<rect x="918" y="189" width="334" height="97" rx="6" fill="#e7f6ec" stroke="#067647" stroke-width="1.5"/>
+<text x="928" y="207" fill="#111">sleep 900 keeps running on its own, as</text>
+<text x="928" y="224" fill="#111">intended</text>
+<rect x="108" y="312" width="214" height="63" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="118" y="330" fill="#111">Run the escape command</text>
+<text x="118" y="347" fill="#111">from figure 1, with</text>
+<text x="118" y="364" fill="#111">'sweep' on</text>
+<rect x="338" y="312" width="274" height="63" rx="6" fill="#fff4d6" stroke="#b54708" stroke-width="1.5"/>
+<text x="348" y="330" fill="#111">Stop the group, as before. Then</text>
+<text x="348" y="347" fill="#111">sweep: run kill -KILL -1 (kill</text>
+<text x="348" y="364" fill="#111">everything I am allowed to)</text>
+<rect x="918" y="312" width="334" height="63" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="928" y="330" fill="#111">The escaped sleep 3601 dies. So do the</text>
+<text x="928" y="347" fill="#111">dev server and the main program</text>
+<rect x="918" y="401" width="334" height="46" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="928" y="419" fill="#111">tini's only child is gone, so tini exits</text>
+<text x="928" y="436" fill="#111">with 137 (128 + SIGKILL)</text>
+<rect x="628" y="401" width="274" height="46" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="638" y="419" fill="#111">PID 1 exited: the container has</text>
+<text x="638" y="436" fill="#111">stopped</text>
+<rect x="338" y="473" width="274" height="63" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="348" y="491" fill="#111">Count leftovers: Docker refuses</text>
+<text x="348" y="508" fill="#111">(409), there is no running</text>
+<text x="348" y="525" fill="#111">container to look into</text>
+<rect x="108" y="473" width="214" height="63" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="118" y="491" fill="#111">Result: stopped by</text>
+<text x="118" y="508" fill="#111">timeout, exit 143, no</text>
+<text x="118" y="525" fill="#111">leftover count</text>
+<rect x="108" y="562" width="214" height="63" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="118" y="580" fill="#111">Run: echo hi</text>
+<text x="118" y="597" fill="#111">Result: error 500,</text>
+<text x="118" y="614" fill="#111">container not running</text>
+<rect x="338" y="562" width="274" height="63" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="348" y="580" fill="#111">Still believes the sandbox is</text>
+<text x="348" y="597" fill="#111">running: it never asked Docker</text>
+<line x1="612" y1="343.5" x2="918" y2="343.5" stroke="#b42318" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="769.0" y="339.5" font-size="11" font-style="italic" fill="#b42318">SIGKILL to all</text>
+<line x1="1085.0" y1="375" x2="1085.0" y2="401" stroke="#b42318" stroke-width="1.8" marker-end="url(#ah)"/>
+<line x1="918" y1="424.0" x2="902" y2="424.0" stroke="#b42318" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="20" y="665" font-size="12" fill="#475467">The sweep removed the leak, but also the agent's dev server and the whole sandbox. One run.</text>
+</svg>

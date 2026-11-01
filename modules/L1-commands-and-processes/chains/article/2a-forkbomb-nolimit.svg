@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="705" font-family="Helvetica, Arial, sans-serif" font-size="13">
+<defs><marker id="ah" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#b42318"/></marker></defs>
+<rect width="1280" height="705" fill="#ffffff"/>
+<text x="20" y="32" font-size="19" font-weight="bold" fill="#111">2a. A fork bomb with no process limit takes down every sandbox</text>
+<rect x="100" y="70" width="230" height="598" fill="#f7f7f8" stroke="#d0d5dd"/>
+<text x="215.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">THE AGENT</text>
+<rect x="330" y="70" width="290" height="598" fill="#ffffff" stroke="#d0d5dd"/>
+<text x="475.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">OUR SANDBOX API</text>
+<rect x="620" y="70" width="290" height="598" fill="#f7f7f8" stroke="#d0d5dd"/>
+<text x="765.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">DOCKER</text>
+<rect x="910" y="70" width="350" height="598" fill="#ffffff" stroke="#d0d5dd"/>
+<text x="1085.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">INSIDE THE SANDBOX</text>
+<text x="12" y="90" font-weight="bold" fill="#111">time</text>
+<line x1="92" y1="100" x2="92" y2="662" stroke="#98a2b3" marker-end="url(#ah)"/>
+<text x="12" y="118" fill="#475467" font-weight="bold">start</text>
+<text x="12" y="224" fill="#475467" font-weight="bold">2 s</text>
+<text x="12" y="313" fill="#475467" font-weight="bold">next</text>
+<text x="12" y="419" fill="#475467" font-weight="bold">60 s</text>
+<text x="12" y="508" fill="#475467" font-weight="bold">8 min</text>
+<text x="12" y="580" fill="#475467" font-weight="bold">fix</text>
+<rect x="108" y="100" width="214" height="80" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="118" y="118" fill="#111">Run: a fork bomb</text>
+<text x="118" y="135" fill="#111">sh -c 'bomb() { bomb |</text>
+<text x="118" y="152" fill="#111">bomb &amp; }; bomb'</text>
+<text x="118" y="169" fill="#111">with a 3 s timeout</text>
+<rect x="918" y="100" width="334" height="80" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="928" y="118" fill="#111">sh starts the first bomb in the</text>
+<text x="928" y="135" fill="#111">background and exits at once</text>
+<text x="928" y="152" fill="#111">bombs copy themselves without limit and</text>
+<text x="928" y="169" fill="#111">keep the output pipe open</text>
+<rect x="628" y="206" width="274" height="63" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="638" y="224" fill="#111">sh has exited: Docker waits 2 s</text>
+<text x="638" y="241" fill="#111">for the output to close, then</text>
+<text x="638" y="258" fill="#111">cuts it</text>
+<rect x="338" y="206" width="274" height="63" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="348" y="224" fill="#111">The command 'finished' before</text>
+<text x="348" y="241" fill="#111">the timeout, so our stop never</text>
+<text x="348" y="258" fill="#111">runs</text>
+<rect x="338" y="295" width="274" height="80" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="348" y="313" fill="#111">Count leftover processes: start</text>
+<text x="348" y="330" fill="#111">ps inside the sandbox. It never</text>
+<text x="348" y="347" fill="#111">answers, and our code has no</text>
+<text x="348" y="364" fill="#111">deadline for it</text>
+<rect x="918" y="295" width="334" height="80" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="928" y="313" fill="#111">The bomb keeps growing. On a Mac all</text>
+<text x="928" y="330" fill="#111">containers, and Docker itself, share one</text>
+<text x="928" y="347" fill="#111">Linux VM</text>
+<rect x="108" y="401" width="214" height="63" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="118" y="419" fill="#111">No answer for the bomb</text>
+<text x="118" y="436" fill="#111">call, for echo hi, or for</text>
+<text x="118" y="453" fill="#111">deleting the sandbox</text>
+<rect x="628" y="401" width="274" height="63" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="638" y="419" fill="#111">docker ps: no answer</text>
+<rect x="628" y="490" width="274" height="46" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="638" y="508" fill="#111">Still no answer. The VM is busy</text>
+<text x="638" y="525" fill="#111">at 664% CPU (8 CPUs)</text>
+<rect x="628" y="562" width="274" height="80" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="638" y="580" fill="#111">Restart Docker Desktop: Docker</text>
+<text x="638" y="597" fill="#111">answers again after 131 s. Until</text>
+<text x="638" y="614" fill="#111">then Docker could not serve any</text>
+<text x="638" y="631" fill="#111">sandbox</text>
+<line x1="918" y1="335.0" x2="612" y2="335.0" stroke="#b42318" stroke-width="1.8" marker-end="url(#ah)"/>
+<line x1="918" y1="335.0" x2="902" y2="432.5" stroke="#b42318" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="20" y="682" font-size="12" fill="#475467">One run. Docker Desktop on a Mac (VM: 8 CPUs, about 3.9 GB).</text>
+</svg>

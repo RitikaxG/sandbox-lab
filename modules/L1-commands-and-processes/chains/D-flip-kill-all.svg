@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1006" font-family="Helvetica, Arial, sans-serif" font-size="13">
+<defs><marker id="ah" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#b42318"/></marker></defs>
+<rect width="1280" height="1006" fill="#ffffff"/>
+<text x="20" y="32" font-size="19" font-weight="bold" fill="#111">Chain D: the D flip, 'kill everything' ends the sandbox (#44; 1 run)</text>
+<rect x="100" y="70" width="230" height="865" fill="#f7f7f8" stroke="#d0d5dd"/>
+<text x="215.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">AGENT</text>
+<rect x="330" y="70" width="290" height="865" fill="#ffffff" stroke="#d0d5dd"/>
+<text x="475.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">OUR API</text>
+<rect x="620" y="70" width="280" height="865" fill="#f7f7f8" stroke="#d0d5dd"/>
+<text x="760.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">DOCKER</text>
+<rect x="900" y="70" width="360" height="865" fill="#ffffff" stroke="#d0d5dd"/>
+<text x="1080.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">SANDBOX PROCESSES</text>
+<text x="12" y="90" font-weight="bold" fill="#111">time</text>
+<line x1="92" y1="100" x2="92" y2="929" stroke="#98a2b3" marker-end="url(#ah)"/>
+<text x="12" y="118" fill="#475467" font-weight="bold">before</text>
+<text x="12" y="224" fill="#475467" font-weight="bold">call 1</text>
+<text x="12" y="347" fill="#475467" font-weight="bold">+62 ms</text>
+<text x="12" y="419" fill="#475467" font-weight="bold">call 2</text>
+<text x="12" y="508" fill="#475467" font-weight="bold">~3,150 ms</text>
+<text x="12" y="614" fill="#475467" font-weight="bold">next</text>
+<text x="12" y="686" fill="#475467" font-weight="bold">next</text>
+<text x="12" y="758" fill="#475467" font-weight="bold">3,289 ms</text>
+<text x="12" y="864" fill="#475467" font-weight="bold">then</text>
+<rect x="908" y="100" width="344" height="80" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="918" y="118" fill="#111">PID 1 tini -&gt; its one child, the</text>
+<text x="918" y="135" fill="#111">container's MAIN command (sleep 86400)</text>
+<text x="918" y="152" fill="#111">the container lives exactly as long as PID</text>
+<text x="918" y="169" fill="#111">1</text>
+<rect x="108" y="206" width="214" height="97" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="118" y="224" fill="#111">dev server: setsid sleep</text>
+<text x="118" y="241" fill="#111">900 &gt; /dev/null 2&gt;&amp;1 &amp;</text>
+<rect x="908" y="206" width="344" height="97" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="918" y="224" fill="#111">exec'd sh starts sleep 900 (new group +</text>
+<text x="918" y="241" fill="#111">session, output to /dev/null) and exits 0</text>
+<text x="918" y="258" fill="#111">sleep 900: parent -&gt; PID 1, group 20</text>
+<text x="918" y="275" fill="#111">an exec'd sh is NOT the main command: its</text>
+<text x="918" y="292" fill="#111">exit never ends the container</text>
+<rect x="108" y="329" width="214" height="46" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="118" y="347" fill="#111">200 in 62 ms</text>
+<text x="118" y="364" fill="#111">leaks: [sleep 900]</text>
+<rect x="628" y="329" width="264" height="46" rx="6" fill="#e7f6ec" stroke="#067647" stroke-width="1.5"/>
+<text x="638" y="347" fill="#111">sh exited and nothing holds the</text>
+<text x="638" y="364" fill="#111">output pipe -&gt; no 2 s wait</text>
+<rect x="108" y="401" width="214" height="63" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="118" y="419" fill="#111">Chain A's command,</text>
+<text x="118" y="436" fill="#111">timeout_s=1, sweep: true</text>
+<rect x="338" y="401" width="274" height="63" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="348" y="419" fill="#111">1,004 ms timeout; SIGTERM step</text>
+<text x="348" y="436" fill="#111">2,122 ms (Docker's 2 s, as in</text>
+<text x="348" y="453" fill="#111">A); SIGKILL group 42 ms</text>
+<rect x="338" y="490" width="274" height="80" rx="6" fill="#fff4d6" stroke="#b54708" stroke-width="1.5"/>
+<text x="348" y="508" fill="#111">sweep: fresh exec runs kill</text>
+<text x="348" y="525" fill="#111">-KILL -1 (19 ms)</text>
+<rect x="908" y="490" width="344" height="80" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="918" y="508" fill="#111">kill -1 = every process it may signal</text>
+<text x="918" y="525" fill="#111">except itself and PID 1:</text>
+<text x="918" y="542" fill="#111">sleep 86400 (main), sleep 900 (dev</text>
+<text x="918" y="559" fill="#111">server), sleep 3601 (escapee) all die</text>
+<rect x="908" y="596" width="344" height="46" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="918" y="614" fill="#111">tini's child is gone -&gt; tini exits with</text>
+<text x="918" y="631" fill="#111">128 + 9 = 137 -&gt; PID 1 gone</text>
+<rect x="628" y="596" width="264" height="46" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="638" y="614" fill="#111">container Exited (137)</text>
+<rect x="338" y="668" width="274" height="46" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="348" y="686" fill="#111">leak count: exec into the</text>
+<text x="348" y="703" fill="#111">container</text>
+<rect x="628" y="668" width="264" height="46" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="638" y="686" fill="#111">409: no exec into a container</text>
+<text x="638" y="703" fill="#111">that is not running</text>
+<rect x="108" y="740" width="214" height="80" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="118" y="758" fill="#111">200, exit 143, timeout</text>
+<text x="118" y="775" fill="#111">no swept, sweep_note</text>
+<text x="118" y="792" fill="#111">'unable to upgrade to</text>
+<text x="118" y="809" fill="#111">tcp, received 409'</text>
+<rect x="108" y="846" width="214" height="63" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="118" y="864" fill="#111">echo hi: 500 in 3 ms</text>
+<text x="118" y="881" fill="#111">'container is not</text>
+<text x="118" y="898" fill="#111">running'</text>
+<rect x="338" y="846" width="274" height="63" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="348" y="864" fill="#111">its in-memory list still says</text>
+<text x="348" y="881" fill="#111">running: it never asked Docker</text>
+<line x1="612" y1="530.0" x2="908" y2="530.0" stroke="#b42318" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="764.0" y="526.0" font-size="11" font-style="italic" fill="#b42318">SIGKILL to all</text>
+<line x1="1080.0" y1="570" x2="1080.0" y2="596" stroke="#b42318" stroke-width="1.8" marker-end="url(#ah)"/>
+<line x1="908" y1="619.0" x2="892" y2="619.0" stroke="#b42318" stroke-width="1.8" marker-end="url(#ah)"/>
+<line x1="628" y1="691.0" x2="322" y2="780.0" stroke="#b42318" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="479.0" y="731.5" font-size="11" font-style="italic" fill="#b42318">refused</text>
+<text x="20" y="949" font-size="12" fill="#475467">D's collateral vs C': it killed the escapee, but also the agent's dev server and the sandbox itself. That is why decision 002 keeps C' (group stop + count</text>
+<text x="20" y="966" font-size="12" fill="#475467">leftovers) and postmortem 002 G4 kills only this exec's leftovers. Exit 137 of the container = tini passing on its child's SIGKILL. Source:</text>
+<text x="20" y="983" font-size="12" fill="#475467">results/l1-dflip.csv.</text>
+</svg>

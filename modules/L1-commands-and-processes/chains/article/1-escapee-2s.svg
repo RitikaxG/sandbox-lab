@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="701" font-family="Helvetica, Arial, sans-serif" font-size="13">
+<defs><marker id="ah" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#b42318"/></marker></defs>
+<rect width="1280" height="701" fill="#ffffff"/>
+<text x="20" y="32" font-size="19" font-weight="bold" fill="#111">1. One escaped process makes a 1-second timeout take 3 seconds</text>
+<rect x="100" y="70" width="230" height="594" fill="#f7f7f8" stroke="#d0d5dd"/>
+<text x="215.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">THE AGENT</text>
+<rect x="330" y="70" width="290" height="594" fill="#ffffff" stroke="#d0d5dd"/>
+<text x="475.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">OUR SANDBOX API</text>
+<rect x="620" y="70" width="290" height="594" fill="#f7f7f8" stroke="#d0d5dd"/>
+<text x="765.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">DOCKER</text>
+<rect x="910" y="70" width="350" height="594" fill="#ffffff" stroke="#d0d5dd"/>
+<text x="1085.0" y="90" text-anchor="middle" font-weight="bold" fill="#111">INSIDE THE SANDBOX</text>
+<text x="12" y="90" font-weight="bold" fill="#111">time</text>
+<line x1="92" y1="100" x2="92" y2="658" stroke="#98a2b3" marker-end="url(#ah)"/>
+<text x="12" y="118" fill="#475467" font-weight="bold">start</text>
+<text x="12" y="258" fill="#475467" font-weight="bold">1 s</text>
+<text x="12" y="364" fill="#475467" font-weight="bold">1 s to 3 s</text>
+<text x="12" y="470" fill="#475467" font-weight="bold">3.1 s</text>
+<text x="12" y="576" fill="#475467" font-weight="bold">next call</text>
+<rect x="108" y="100" width="214" height="114" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="118" y="118" fill="#111">Run: sh -c 'sleep 3600 &amp;</text>
+<text x="118" y="135" fill="#111">setsid sleep 3601 &amp; wait'</text>
+<text x="118" y="152" fill="#111">with a 1 s timeout</text>
+<rect x="918" y="100" width="334" height="114" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="928" y="118" fill="#111">sh and sleep 3600 share one process</text>
+<text x="928" y="135" fill="#111">group</text>
+<text x="928" y="152" fill="#111">setsid moves sleep 3601 into its own</text>
+<text x="928" y="169" fill="#111">group</text>
+<text x="928" y="186" fill="#111">all three share the command's output</text>
+<text x="928" y="203" fill="#111">pipe</text>
+<rect x="338" y="240" width="274" height="80" rx="6" fill="#fff4d6" stroke="#b54708" stroke-width="1.5"/>
+<text x="348" y="258" fill="#111">Timeout. Send SIGTERM to the</text>
+<text x="348" y="275" fill="#111">command's process group</text>
+<rect x="918" y="240" width="334" height="80" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="928" y="258" fill="#111">sh and sleep 3600 stop</text>
+<text x="928" y="275" fill="#111">sleep 3601 is in another group: never</text>
+<text x="928" y="292" fill="#111">gets the signal, keeps running, keeps</text>
+<text x="928" y="309" fill="#111">the output pipe open</text>
+<rect x="338" y="346" width="274" height="80" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="348" y="364" fill="#111">Our stop is waiting on Docker</text>
+<rect x="628" y="346" width="274" height="80" rx="6" fill="#fff4d6" stroke="#b54708" stroke-width="1.5"/>
+<text x="638" y="364" fill="#111">sh has exited, so Docker waits</text>
+<text x="638" y="381" fill="#111">for the output to close. It</text>
+<text x="638" y="398" fill="#111">never closes. Docker gives up</text>
+<text x="638" y="415" fill="#111">after 2 s and cuts it</text>
+<rect x="108" y="452" width="214" height="80" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="118" y="470" fill="#111">Result: stopped by</text>
+<text x="118" y="487" fill="#111">timeout, exit 143</text>
+<text x="118" y="504" fill="#111">leftover: sleep 3601</text>
+<text x="118" y="521" fill="#111">still running</text>
+<rect x="338" y="452" width="274" height="80" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="348" y="470" fill="#111">Count leftover processes in the</text>
+<text x="348" y="487" fill="#111">sandbox</text>
+<rect x="108" y="558" width="214" height="80" rx="6" fill="#fde8e8" stroke="#b42318" stroke-width="1.5"/>
+<text x="118" y="576" fill="#111">Run: echo hi</text>
+<text x="118" y="593" fill="#111">Result: exit 0, leftover:</text>
+<text x="118" y="610" fill="#111">sleep 3601 (again)</text>
+<rect x="338" y="558" width="274" height="80" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="348" y="576" fill="#111">The leftover count looks at the</text>
+<text x="348" y="593" fill="#111">whole sandbox, so an innocent</text>
+<text x="348" y="610" fill="#111">command is blamed for an old</text>
+<text x="348" y="627" fill="#111">leak</text>
+<line x1="612" y1="280.0" x2="918" y2="280.0" stroke="#b42318" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="769.0" y="276.0" font-size="11" font-style="italic" fill="#b42318">SIGTERM</text>
+<line x1="918" y1="280.0" x2="902" y2="386.0" stroke="#b42318" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="914.0" y="329.0" font-size="11" font-style="italic" fill="#b42318">pipe still open</text>
+<line x1="628" y1="386.0" x2="612" y2="492.0" stroke="#b42318" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="624.0" y="435.0" font-size="11" font-style="italic" fill="#b42318">gives up after 2 s</text>
+<text x="20" y="678" font-size="12" fill="#475467">Same result in 3 of 3 runs: stop took 2.08 to 2.09 s instead of under 0.1 s.</text>
+</svg>
