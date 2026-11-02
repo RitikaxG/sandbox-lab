@@ -21,9 +21,11 @@ Source: smolvm main `907c2334`, guest agent `crates/smolvm-agent/src/main.rs` (V
 4. **Why the whole group:** the code comment: killing only `sh` leaves `sleep` holding the output pipe, so the agent's
    output readers never see end-of-file and the agent hangs. This is the opposite of CUA #5588, where only the parent
    was killed and the children (serve daemons) survived.
-5. **What escapes (INFERENCE, to test in the lab; mechanism OBSERVED in Docker 2026-10-30, prediction #36: `kill -KILL -<group>` left the `setsid sleep` running, reparented to PID 1; smolvm's agent itself still to test):** a child that calls `setsid` itself, i.e. daemonizes, leaves the
+5. **What escapes (OBSERVED in smolvm 1.30.1 on 2026-11-02, predictions #45–#49; first seen in Docker, #36):** a child that calls `setsid` itself, i.e. daemonizes, leaves the
    group, so `killpg` misses it and it survives the timeout or disconnect. Same for anything started with `nohup … &`
    plus `setsid`. The killpg call is `#[cfg(target_os = "linux")]`; the guest is Linux, so it always runs there.
+
+**Result 2026-11-02 (#45–#49):** the `setsid sleep 301` survives the timeout's `killpg` (parent 1, own group), and nothing reports it. Worse: while it holds the exec's output pipe, the agent never answers (it waits for end-of-output after the kill), so `machine exec --timeout 3s` ends after 8 s with the CLI's own `timed out waiting for an agent response frame`, exit 1, not 124. With the escapee's output sent to /dev/null: 3.18 s, exit 124, `command timed out after 3000ms`. The agent frees itself when the escapee ends. No duplicate found (issues, PRs, git log). Candidate own find for `issue-check`.
 
 Lab use (Thu): the experiment is "start `sh -c 'sleep 300 & setsid sleep 300 & wait'` with a short timeout, then count
 what survives inside the guest". Prediction first.
