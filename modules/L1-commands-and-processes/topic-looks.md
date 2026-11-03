@@ -88,6 +88,24 @@ foreground `sleep 602` died too)? What does "kill the command when this process 
 SIGKILL to the group, `sleep 601` could not survive)? Read `cua-cli` exec / `cua-spacesd` source. Whether this is a bug
 or intended: `issue-check` on the next CUA day (#5588 bug-family search, Tue Nov 3), dup search first.
 
+**Answered Tue 2026-11-03 (SOURCE-VERIFIED, origin/main `4715a723a`; not rerun on 0.10.1):**
+- `-i` forwards SIGINT/SIGTERM/SIGHUP to the **group**: `forward.signal(name, true)` (`cua-cli/src/shell.rs:260`);
+  the server sends `kill(-pid, sig)` (`cua-spacesd-server/src/process/mod.rs:226–232`). INFERENCE confirmed.
+- "Kill the command when this process ends" = `kill_on_disconnect` (`shell.rs:244`): on disconnect, **only if the
+  leader is still running** (`mod.rs:1156`), SIGTERM to the group, 5 s grace (`KILL_GRACE`), then SIGKILL to the group
+  (`terminate`, `mod.rs:987–1003`).
+- So the `sleep 601` chain: SIGINT to the group → `sh` and `sleep 602` die, `sleep 601` ignores SIGINT (`&` in a
+  non-interactive shell) → the leader has exited, so the stream ends normally and `cua` exits 130 → at disconnect
+  `entry.running()` is false → no group kill. A `cua` killed with SIGKILL while the leader runs would take the whole
+  group (TERM, then KILL).
+- Plain exec: `kill_on_disconnect: false` (`shell.rs:22`); the proto says "Default false: processes are detached", so
+  Ctrl-C leaving the command running is the documented design (with the 120 s limit unless `--timeout 0`).
+- Verdict: **not a bug, NO-GO** (`issue-check` item 3, intended behaviour). `-i` + Ctrl-C does what Ctrl-C does in a
+  local terminal (`&` jobs survive); the docs' "a host that dies leaves nothing running" is about the client going
+  away while the command runs, which the code covers. Dup search: no issue or PR about exec Ctrl-C.
+- For the lab: the cleanup is keyed to "is the leader alive", so anything the leader leaves behind after a normal
+  exit is never swept: the same gap as our postmortem 002 G4 (per-exec leftovers).
+
 Ritika's explain-back (2026-10-29): we tested whether Ctrl-C, a polite stop signal (SIGINT), reaches inside the box.
 (1) With plain `cua sb exec`, Ctrl-C only stops the `cua` program on the Mac; nothing reaches the box, so the whole
 family keeps running. (2) With `-i`, the stop reaches the box: it kills `sh` and `sleep 602`, while `sleep 601` becomes
