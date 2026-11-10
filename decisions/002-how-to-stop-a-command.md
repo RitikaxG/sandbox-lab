@@ -125,3 +125,9 @@ created** (a process snapshot before each exec), report them, and kill them, unl
 `keep_leftovers: true` for a server it started on purpose. Added: `pids.max` 1,024 at create; a deadline on every
 helper exec and the reason when a check fails; `exited_before_stop`; a default 24x80 terminal size. Evidence and
 the full gap list: `postmortems/002-commands-that-dont-stop-cleanly.md`.
+
+## Update 2026-11-05: a CPU cap (Ritika)
+
+`pids.max` protects process slots, not CPU time: 64 endless loops, far under the PID cap, made a neighbour sandbox
+4.5–6.6× slower (#53). Added: a cap of 2 CPUs at create (`cpu.max`, gap G8 in postmortem 002). A task that needs more
+gets another sandbox or branch with its own 2 CPUs. Change the number, not the design, if real agent work outgrows it.

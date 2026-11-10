@@ -62,6 +62,12 @@ func call(what string, start time.Time, err error) {
 	log.Printf("docker: %-28s %6d ms", what, time.Since(start).Milliseconds())
 }
 
+// pidsLimit is every sandbox's cap on processes and threads (its cgroup's pids.max).
+const pidsLimit = 1024
+
+// cpuLimit is every sandbox's cap on CPU time, in billionths of a CPU (its cgroup's cpu.max): 2 CPUs.
+const cpuLimit = 2_000_000_000
+
 func (d *Docker) Create(ctx context.Context, spec Spec) (string, error) {
 	cfg := &container.Config{
 		Image:  spec.Image,
@@ -75,7 +81,11 @@ func (d *Docker) Create(ctx context.Context, spec Spec) (string, error) {
 	// Decision 002, init line: tini (Docker's --init) runs as PID 1, so SIGTERM to the sandbox isn't dropped
 	// and every orphan a command leaves is reaped instead of piling up as a zombie.
 	init := true
-	hc := &container.HostConfig{Init: &init}
+	// Postmortem 002, G1: sandboxes share one kernel's process slots, so each gets its own cap and one fork bomb
+	// can't stop the other sandboxes or Docker itself (#40).
+	// G8: the PID cap doesn't protect CPU time (#53), so each sandbox also gets a CPU cap.
+	limit := int64(pidsLimit)
+	hc := &container.HostConfig{Init: &init, Resources: container.Resources{PidsLimit: &limit, NanoCPUs: cpuLimit}}
 	resp, err := d.cli.ContainerCreate(ctx, cfg, hc, nil, nil, name)
 	if errdefs.IsNotFound(err) {
 		// The image isn't on this machine yet: pull it once, then retry.

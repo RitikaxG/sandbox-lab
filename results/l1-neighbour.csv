@@ -1,0 +1,2 @@
+date,runs,control_p50_ms,control_max_ms,control_ok,bomb_status,bomb_ms,a_pids_before,during_p50_ms,during_max_ms,during_ok,a_pids_after,ratio,a_stats,docker_ps_ms
+2026-11-05T12:07:41,10,36.0,40,10,200,2591,996,36.0,40,10,1023,1.0,sandbox-abab1fbd 0.07% 1023,47

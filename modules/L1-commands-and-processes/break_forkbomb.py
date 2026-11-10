@@ -2,7 +2,7 @@
 """Break 4 (L1 day 2, 2026-10-31): a fork bomb through the API. Time to kill, leaks, and does the sandbox (and the
 rest of Docker) stay usable?
 
-Usage: python3 break_forkbomb.py --pids-limit N   (N = 0: no limit; needs nothing else on localhost:8080 and no
+Usage: python3 break_forkbomb.py --pids-limit N   (N = 0: no limit, overriding the API's 1,024 from G1; needs nothing else on localhost:8080 and no
        sandbox-lab containers)
 
 The Docker Desktop VM (checked 2026-10-31): 8 CPUs, ~3.9 GB, kernel threads-max 31,617 for the WHOLE VM, and a
@@ -120,9 +120,8 @@ def main():
     try:
         status, sb, _ = call("POST", "/sandboxes")
         cid = sb["runtime_id"]
-        if a.pids_limit:
-            subprocess.run(["docker", "update", "--pids-limit", str(a.pids_limit), cid], check=True,
-                           capture_output=True)
+        subprocess.run(["docker", "update", "--pids-limit", str(a.pids_limit or -1), cid], check=True,
+                       capture_output=True)
         print(f"sandbox {sb['id']} ({status}, container {cid[:12]}), pids limit {a.pids_limit or 'none'}")
 
         watch = PidWatch(cid)
